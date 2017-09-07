@@ -14,6 +14,7 @@ int num_items = 0;
 
 void str_to_item(char *str, TodoItem *item);
 void item_to_str(TodoItem *item, char *str);
+int is_str_empty(char *str);
 
 int model_load_items(char *file_path);															/** returns: number of items read **/
 int model_save_items(char *file_path);															/** returns: number of items written **/
@@ -238,32 +239,74 @@ void item_to_str(TodoItem *item, char *str)
 
 }
 
+int is_str_empty(char *str)
+{
+	for(int i = 0; i < strlen(str); i++)
+	{
+		if(!isspace(str[i])) return 0;
+	}
+
+	return 1;
+}
+
 int model_load_items(char *file_path)
 {
 	model_free();
 
-	char buffer[256];
+	int buffer_size = 128;
+	int buffer_pos = 0;
+	char *buffer = (char *)malloc(sizeof(char) * buffer_size);
+	int c;
+
 	FILE *file = fopen(file_path, "r");
 	if(file == NULL)
 	{
 		return 0;
 	}
 
-	while(!feof(file))
+	while(1)
 	{
-		fgets(buffer, 256, file);
+		c = fgetc(file);
 
-		if(buffer[0] != '\n' && buffer[0] != '\r')
+		if(c == '\n' || c == EOF)
 		{
-			for(int i = 0; i < 256; i++) if(buffer[i] == '\n') buffer[i] = '\0';
+			// end of line
+			buffer[buffer_pos] = '\0';
 
-			num_items++;
-			items = (TodoItem *)realloc(items, sizeof(TodoItem) * num_items);
-			str_to_item(buffer, &items[num_items - 1]);
+			if(!is_str_empty(buffer))
+			{
+				num_items++;
+				items = (TodoItem *)realloc(items, sizeof(TodoItem) * num_items);
+				str_to_item(buffer, &items[num_items - 1]);
+			}
+
+			if(c == EOF)
+			{
+				break;
+			}
+			else
+			{
+				buffer_size = 128;
+				buffer = (char *)realloc(buffer, sizeof(char) * buffer_size);
+				buffer_pos = 0;
+			}
 		}
-	}
+		else
+		{
+			buffer[buffer_pos] = (char)c;
+			buffer_pos++;
+
+			if(buffer_pos == buffer_size - 1)
+			{
+				// resize buffer
+				buffer_size += 128;
+				buffer = (char *)realloc(buffer, sizeof(char) * buffer_size);
+			}
+		}
+	}	
 
 	fclose(file);
+	free(buffer);
 
 	return num_items;
 }
